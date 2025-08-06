@@ -1,0 +1,102 @@
+# ===================================================================
+# SECURITY: IGNORE ALL SENSITIVE FILES & SECRETS
+# Never commit secrets, credentials, or environment-specific files.
+# ===================================================================
+
+# Environment variables
+# Contains API keys, database URLs, secrets. CRITICAL to ignore.
+.env
+.env.*
+*.env
+.env.local
+.env.*.local
+!/.env.example # Allow example env files
+
+# Application Data & Reports
+# Contains user data, scan results, and PII.
+backend/canary.db
+backend/canary.db-journal
+backend/reports/
+*.db
+*.sqlite3
+
+# Cloud Provider Credentials
+# Prevents accidental commit of cloud credentials.
+.aws/
+.gcp/
+*.pem
+*.key
+
+# ===================================================================
+# Python / Backend Dependencies & Artifacts
+# ===================================================================
+
+# Virtual Environments
+# Avoids committing hundreds of megabytes of dependencies.
+venv/
+.venv/
+env/
+.env/
+*/.venv/
+
+# Python Caches & Bytecode
+# Generated automatically, not needed in source control.
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Distribution / Installation
+# Build artifacts, not source code.
+build/
+dist/
+*.egg-info/
+*.egg
+
+# Testing & Coverage
+.pytest_cache/
+.coverage
+.coverage.*
+htmlcov/
+nosetests.xml
+coverage.xml
+
+# ===================================================================
+# Node.js / Frontend Dependencies & Artifacts
+# ===================================================================
+
+# Dependencies
+# Can be reinstalled from package.json, very large.
+node_modules/
+
+# Build output
+# Generated during build process.
+.next/
+out/
+build/
+
+# Logs
+# Can contain sensitive information.
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# ===================================================================
+# IDE & Editor Configuration
+# User-specific settings that don't belong in the repo.
+# ===================================================================
+.idea/
+.vscode/*
+!.vscode/settings.json
+!.vscode/extensions.json
+!.vscode/launch.json
+
+# ===================================================================
+# Operating System Files
+# Junk files created by macOS, Windows, etc.
+# ===================================================================
+.DS_Store
+Thumbs.db
+._*

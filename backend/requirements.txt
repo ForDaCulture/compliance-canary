@@ -1,0 +1,10 @@
+# /backend/requirements.txt
+fastapi
+uvicorn[standard]
+sqlalchemy
+python-dotenv
+apscheduler
+httpx
+authlib
+reportlab
+sendgrid
