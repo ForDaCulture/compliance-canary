@@ -1,0 +1,66 @@
+/* /frontend/app/globals.css */
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --x: 0px; /* CSS variable for CTA animation */
+  }
+  body {
+    @apply bg-gray-900 text-white;
+  }
+}
+
+/* Animation for the Aurora background effect */
+@keyframes blob {
+  0% { transform: translate(0px, 0px) scale(1); }
+  33% { transform: translate(30px, -50px) scale(1.1); }
+  66% { transform: translate(-20px, 20px) scale(0.9); }
+  100% { transform: translate(0px, 0px) scale(1); }
+}
+
+.animate-blob {
+  animation: blob 7s infinite;
+}
+.animation-delay-2000 { animation-delay: 2s; }
+.animation-delay-4000 { animation-delay: 4s; }
+
+/* Styles for the animated CTA button */
+.radial-gradient {
+  background: #171717;
+  position: relative;
+  overflow: hidden;
+}
+
+.linear-mask {
+  background: linear-gradient(
+    to right,
+    transparent,
+    white,
+    transparent
+  );
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  animation: shimmer 3s infinite;
+}
+
+.linear-overlay {
+  background: linear-gradient(
+    to right,
+    #2dd4bf00 20%,
+    #2dd4bf 50%,
+    #2dd4bf00 80%
+  );
+  transform: translateX(var(--x, 100%));
+}
+
+@keyframes shimmer {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}

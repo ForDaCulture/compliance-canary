@@ -1,104 +1,158 @@
 # /backend/main.py
-from fastapi import FastAPI, Depends, HTTPException
+
+# --- START: BOILERPLATE FOR PATH FIX ---
+# This ensures the application root is on the Python path,
+# solving import errors in different execution contexts (e.g., Uvicorn reloader).
+import sys
+import os
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+# --- END: BOILERPLATE FOR PATH FIX ---
+
+# 1. Standard Library Imports
+from datetime import datetime
+from typing import List
+
+# 2. Third-Party Imports
+from fastapi import FastAPI, Depends, HTTPException, status, Request
 from fastapi.middleware.cors import CORSMiddleware
 from apscheduler.schedulers.background import BackgroundScheduler
 from sqlalchemy.orm import Session
-import os
-from datetime import datetime
 
-# Import all the modules we just created
-import crud, models, schemas, parser, pdf_generator, mailer
-from database import SessionLocal, engine
-from oauth import github_oauth
+# 3. Local Application Imports (Absolute)
+from backend import crud, models, schemas, parser, pdf_generator, mailer, oauth
+from backend.database import SessionLocal, engine
 
-# Create DB tables
+
+# --- Application Setup ---
+
+# Create database tables on startup based on models
 models.Base.metadata.create_all(bind=engine)
 
-app = FastAPI(title="ComplianceCanary")
+# Initialize the FastAPI app
+app = FastAPI(
+    title="Compliance Canary",
+    description="Automated security and compliance scanning for modern development teams.",
+    version="0.1.0"
+)
 
-# CORS middleware to allow the frontend to talk to the backend
+# Initialize the background scheduler for nightly jobs
+scheduler = BackgroundScheduler()
+
+
+# --- Middleware ---
+
+# Configure CORS to allow the frontend to communicate with this backend
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[os.getenv("FRONTEND_URL")],
+    allow_origins=[os.getenv("FRONTEND_URL", "http://localhost:3000")],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-scheduler = BackgroundScheduler()
-scheduler.start()
 
-# Dependency to get a DB session
+# --- Dependencies ---
+
 def get_db():
+    """
+    FastAPI dependency that creates and yields a new database session
+    for each request, ensuring the session is always closed.
+    """
     db = SessionLocal()
     try:
         yield db
     finally:
         db.close()
 
-# Dependency to get current user from token
-def get_current_user_dep(user: models.User = Depends(crud.get_current_user)):
-    return user
+def get_current_active_user(token: str = Depends(crud.oauth2_scheme), db: Session = Depends(get_db)):
+    """
+    FastAPI dependency to get the current authenticated user from a token.
+    It uses the token extracted by oauth2_scheme and the db session from get_db.
+    """
+    return crud.get_current_user(db=db, token=token)
 
-############## ROUTES ##############
 
-@app.get("/")
+# --- API Routes ---
+
+@app.get("/", tags=["Status"])
 async def root():
-    return {"hello": "canary"}
+    """Root endpoint to check if the API is running."""
+    return {"status": "ok", "message": "Welcome to Compliance Canary API"}
 
-@app.get("/auth/github")
-async def github_login():
-    return await github_oauth.github.authorize_redirect(None)
+# --- Authentication Routes ---
 
-@app.get("/auth/callback")
-async def github_callback(code: str, db: Session = Depends(get_db)):
-    # This is a simplified flow. We get the token and user data from GitHub
-    token_data = await github_oauth.github.authorize_access_token(None, code)
+@app.get("/auth/github", tags=["Authentication"])
+async def github_login(request: Request):
+    """Redirects the user to GitHub for authentication."""
+    redirect_uri = os.getenv("FRONTEND_URL") + "/api/auth/callback/github" # This must match NextAuth's callback URL
+    return await oauth.oauth.github.authorize_redirect(request, redirect_uri)
+
+
+@app.get("/auth/callback", tags=["Authentication"])
+async def github_callback(request: Request, db: Session = Depends(get_db)):
+    """
+    Callback endpoint that GitHub redirects to after user authorization.
+    This is called by the NextAuth frontend, not directly by the user's browser.
+    """
+    token_data = await oauth.oauth.github.authorize_access_token(request)
     access_token = token_data['access_token']
     
-    # Use token to get user info
-    resp = await github_oauth.github.get('user', token={'access_token': access_token, 'token_type': 'bearer'})
+    resp = await oauth.oauth.github.get('user', token={'access_token': access_token, 'token_type': 'bearer'})
     github_user_data = resp.json()
     
-    # Check if user exists, if not create them
     user = crud.get_user_by_github_id(db, str(github_user_data['id']))
     if not user:
         user = crud.create_user(db, github_user_data, access_token)
 
-    # In a real app, you'd return a JWT. For the MVP, we return the GitHub token.
+    # SECURITY NOTE: In a production app, we would exchange this GitHub access token
+    # for a short-lived JWT that our frontend would use for all subsequent requests.
+    # For this MVP, we are returning the GitHub token directly for simplicity.
     return {"access_token": user.access_token, "token_type": "bearer"}
 
-@app.post("/repos", response_model=schemas.Repo)
-def add_repo(gh_repo: schemas.RepoCreate, db: Session = Depends(get_db), user: models.User = Depends(get_current_user_dep)):
-    return crud.create_repo(db, gh_repo, owner_id=user.id)
+# --- Core Application Routes ---
 
-@app.get("/reports", response_model=List[schemas.Report])
-def list_reports(db: Session = Depends(get_db), user: models.User = Depends(get_current_user_dep)):
-    return crud.list_user_reports(db, user_id=user.id)
+@app.post("/repos", response_model=schemas.Repo, tags=["Repositories"])
+def add_repo(
+    repo_data: schemas.RepoCreate,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_active_user)
+):
+    """Adds a new repository for the authenticated user to be scanned."""
+    return crud.create_repo(db=db, repo=repo_data, owner_id=current_user.id)
 
-############## SCHEDULER & PDF FEATURE ##############
+
+@app.get("/reports", response_model=List[schemas.Report], tags=["Reports"])
+def list_reports(
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_active_user)
+):
+    """Lists all historical reports for the authenticated user."""
+    return crud.list_user_reports(db=db, owner_id=current_user.id)
+
+
+# --- Scheduled Jobs ---
 
 def nightly_scan_and_report():
-    print(f"Starting nightly scan at {datetime.now()}")
+    """
+    The core background job. It fetches all active repos, scans them,
+    generates a PDF report, emails it, and saves the result to the database.
+    """
+    print(f"SCHEDULER: Starting nightly scan at {datetime.now()}")
     db = SessionLocal()
     try:
         active_repos = db.query(models.Repo).filter(models.Repo.active == True).all()
         for repo in active_repos:
-            print(f"Scanning repo: {repo.name}")
-            # The parser scans the repo for vulnerabilities
+            print(f"SCHEDULER: Scanning repo: {repo.name}")
             findings = parser.scan_repository(repo.clone_url, repo.owner.access_token)
-            
-            # The PDF generator creates a report from the findings
             pdf_path = pdf_generator.create_report_pdf(repo, findings)
-            
-            # The mailer sends the report to the user
             mailer.send_report_email(repo.owner.email, repo.name, pdf_path)
-
-            # We store the report and path in the database
             crud.store_report(db, repo.id, findings, pdf_path)
-            print(f"Finished processing repo: {repo.name}")
+            print(f"SCHEDULER: Finished processing repo: {repo.name}")
+    except Exception as e:
+        print(f"SCHEDULER: An error occurred during the nightly scan: {e}")
     finally:
         db.close()
 
-# Schedule the job to run every night at 2 AM
+# Schedule the job to run every night at 2 AM system time
 scheduler.add_job(nightly_scan_and_report, 'cron', hour=2, minute=0)
+scheduler.start()
