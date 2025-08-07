@@ -6,7 +6,10 @@ from fastapi import FastAPI, Depends, HTTPException, status, Request
 from fastapi.middleware.cors import CORSMiddleware
 from apscheduler.schedulers.background import BackgroundScheduler
 from sqlalchemy.orm import Session
-from typing import List  # Added import for List type hint
+from typing import List
+from datetime import datetime
+
+# Local application imports
 import backend.crud as crud
 import backend.models as models
 import backend.schemas as schemas
@@ -16,7 +19,6 @@ import backend.mailer as mailer
 import backend.oauth as oauth
 from backend.database import SessionLocal, engine, init_db
 from backend.dependencies import get_db
-from datetime import datetime
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -43,18 +45,28 @@ app.add_middleware(
 def get_current_active_user(token: str = Depends(crud.oauth2_scheme), db: Session = Depends(get_db)):
     return crud.get_current_user(token, db)
 
+## --- API Routes ---
+
 @app.get("/", tags=["Status"])
 async def root():
     return {"status": "ok", "message": "Welcome to Compliance Canary API", "timestamp": datetime.utcnow().isoformat()}
 
 @app.get("/auth/github", tags=["Authentication"])
 async def github_login(request: Request):
-    redirect_uri = f"{os.getenv('FRONTEND_URL', 'http://localhost:3000')}/api/auth/callback"
-    logger.info(f"Redirecting to GitHub OAuth with redirect URI: {redirect_uri}")
+    """
+    Initiates the GitHub OAuth2 login flow by redirecting the user to GitHub.
+    """
+    # PERMANENT FIX: This URI now points to a route OUTSIDE of /api/auth/
+    redirect_uri = f"{os.getenv('FRONTEND_URL', 'http://localhost:3000')}/auth-callback/github"
+    logger.info(f"Redirecting to GitHub OAuth with new redirect URI: {redirect_uri}")
     return await oauth.oauth.github.authorize_redirect(request, redirect_uri)
 
 @app.get("/auth/callback", tags=["Authentication"])
 async def github_callback(request: Request, db: Session = Depends(get_db)):
+    """
+    Backend API endpoint to handle the code exchange. This is called by the frontend.
+    Its path does not conflict because it's on the backend server.
+    """
     try:
         token_data = await oauth.oauth.github.authorize_access_token(request)
         access_token = token_data["access_token"]
@@ -70,11 +82,12 @@ async def github_callback(request: Request, db: Session = Depends(get_db)):
             db.refresh(user)
 
         jwt_token = oauth.create_access_token({"sub": str(user.id)})
-        logger.info(f"User {user.id} authenticated successfully")
+        logger.info(f"User {user.id} authenticated successfully.")
         return {"access_token": jwt_token, "token_type": "bearer"}
+
     except Exception as e:
         logger.error(f"Authentication error: {e}")
-        raise HTTPException(status_code=400, detail="Authentication failed")
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Authentication failed")
 
 @app.post("/repos", response_model=schemas.Repo, tags=["Repositories"])
 def add_repo(repo_data: schemas.RepoCreate, db: Session = Depends(get_db), current_user: models.User = Depends(get_current_active_user)):
@@ -83,6 +96,8 @@ def add_repo(repo_data: schemas.RepoCreate, db: Session = Depends(get_db), curre
 @app.get("/reports", response_model=List[schemas.Report], tags=["Reports"])
 def list_reports(db: Session = Depends(get_db), current_user: models.User = Depends(get_current_active_user)):
     return crud.list_user_reports(db, owner_id=current_user.id)
+
+## --- Scheduled Background Job ---
 
 def nightly_scan_and_report():
     logger.info(f"Starting nightly scan at {datetime.utcnow()}")
@@ -97,12 +112,12 @@ def nightly_scan_and_report():
             crud.store_report(db, repo.id, findings, pdf_path)
             logger.info(f"Finished processing repo: {repo.name}")
     except Exception as e:
-        logger.error(f"Nightly scan error: {e}")
+        logger.error(f"Nightly scan failed: {e}")
     finally:
         db.close()
 
 scheduler = BackgroundScheduler()
-if os.getenv("ENVIRONMENT", "development") == "production":
+if os.getenv("ENVIRONMENT") == "production":
     scheduler.add_job(nightly_scan_and_report, "cron", hour=2, minute=0)
     scheduler.start()
-    logger.info("Scheduler started for nightly scans")
+    logger.info("Scheduler started for nightly scans in production mode.")

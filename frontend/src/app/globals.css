@@ -5,62 +5,85 @@
 
 @layer base {
   :root {
-    --x: 0px; /* CSS variable for CTA animation */
+    /* CSS variables for mouse position */
+    --mouse-x: 50%;
+    --mouse-y: 50%;
   }
   body {
-    @apply bg-gray-900 text-white;
+    @apply bg-black text-gray-200;
   }
 }
 
-/* Animation for the Aurora background effect */
-@keyframes blob {
-  0% { transform: translate(0px, 0px) scale(1); }
-  33% { transform: translate(30px, -50px) scale(1.1); }
-  66% { transform: translate(-20px, 20px) scale(0.9); }
-  100% { transform: translate(0px, 0px) scale(1); }
-}
-
-.animate-blob {
-  animation: blob 7s infinite;
-}
-.animation-delay-2000 { animation-delay: 2s; }
-.animation-delay-4000 { animation-delay: 4s; }
-
-/* Styles for the animated CTA button */
-.radial-gradient {
-  background: #171717;
+/* Aurora Spotlight Background Effect
+  Inspired by heavens.pro designs. This creates a soft, radial gradient
+  that follows the mouse cursor, giving the background a sense of depth.
+*/
+.aurora-background {
+  background-color: #0a0a0a; /* A very dark base */
   position: relative;
   overflow: hidden;
 }
-
-.linear-mask {
-  background: linear-gradient(
-    to right,
-    transparent,
-    white,
-    transparent
+.aurora-background::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 0;
+  pointer-events: none;
+  background: radial-gradient(
+    circle at var(--mouse-x) var(--mouse-y),
+    rgba(168, 85, 247, 0.15) 0%,   /* Purple haze */
+    rgba(34, 197, 94, 0.1) 25%,   /* Green/Teal haze */
+    transparent 50%
   );
-  -webkit-background-clip: text;
-  background-clip: text;
-  color: transparent;
-  animation: shimmer 3s infinite;
+  opacity: 0.7;
+  transition: background 0.3s ease-out;
 }
 
-.linear-overlay {
-  background: linear-gradient(
-    to right,
-    #2dd4bf00 20%,
-    #2dd4bf 50%,
-    #2dd4bf00 80%
-  );
-  transform: translateX(var(--x, 100%));
-}
-
-@keyframes shimmer {
-  0% {
-    background-position: -200% 0;
+/* Glowing Feature Card Effect
+  Adds a glowing border effect on hover.
+*/
+@layer components {
+  .glow-card {
+    @apply relative bg-gray-900/50 border border-gray-800 rounded-xl p-6 transition-all duration-300;
   }
-  100% {
+  .glow-card:hover {
+    @apply border-teal-400/50 transform-gpu scale-[1.02];
+  }
+  .glow-card::before {
+    content: "";
+    @apply absolute -inset-px rounded-xl opacity-0 transition-opacity duration-300;
+    pointer-events: none;
+  }
+  .glow-card:hover::before {
+    @apply opacity-100;
+    background: radial-gradient(400px at 50% 50%, rgba(45, 212, 191, 0.15), transparent 80%);
+  }
+}
+
+/* Shimmering Text Animation
+*/
+@keyframes text-shimmer {
+  from {
     background-position: 200% 0;
   }
+  to {
+    background-position: -200% 0;
+  }
+}
+.text-shimmer {
+  background-image: linear-gradient(
+    110deg,
+    transparent 20%,
+    #e2e8f0 40%,
+    #e2e8f0 60%,
+    transparent 80%
+  );
+  background-size: 200% 100%;
+  background-clip: text;
+  -webkit-background-clip: text;
+  color: transparent;
+  animation: text-shimmer 4s linear infinite;
 }
