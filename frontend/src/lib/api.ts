@@ -1,25 +1,41 @@
 // frontend/src/lib/api.ts
-import axios from 'axios';
 
-const apiClient = axios.create({
-  baseURL: process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000',
-});
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
 
-// Function to handle the OAuth callback
+// A helper function for handling API responses
+async function handleResponse(response: Response) {
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({ detail: response.statusText }));
+    throw new Error(errorData.detail || 'An unknown network error occurred.');
+  }
+  return response.json();
+}
+
+/**
+ * Exchanges the GitHub OAuth authorization code for our application's JWT.
+ * @param code The authorization code from the GitHub redirect.
+ * @returns The backend response containing the access_token.
+ */
 export const exchangeCodeForToken = async (code: string) => {
-  const response = await apiClient.get(`/auth/callback?code=${code}`);
-  return response.data;
+  const response = await fetch(`${API_BASE_URL}/auth/callback?code=${code}`);
+  return handleResponse(response);
 };
 
-// Function to get repositories
-export const getRepositories = async () => {
+/**
+ * Fetches the authenticated user's repositories from our backend.
+ * @returns A list of the user's repositories.
+ */
+export const getUserRepositories = async () => {
   const token = localStorage.getItem('canary_token');
-  if (!token) throw new Error('No authentication token found.');
-  
-  const response = await apiClient.get('/repos', { // Assuming you have a /repos endpoint
+  if (!token) {
+    throw new Error('No authentication token found.');
+  }
+
+  const response = await fetch(`${API_BASE_URL}/api/user/repositories`, {
     headers: {
       Authorization: `Bearer ${token}`,
     },
   });
-  return response.data;
+
+  return handleResponse(response);
 };

@@ -2,68 +2,89 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import Header from '@/components/Header';
-import RepoCard from '@/components/RepoCard';
-import { getRepositories } from '@/lib/api'; // We'll need to implement this
 import { useRouter } from 'next/navigation';
+import Header from '@/components/Header';
+import { getUserRepositories } from '@/lib/api';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import { Button } from "@/components/ui/button"; // You'll need to add this component
 
-// Mock data until the API is fully implemented
-const mockRepos = [
-  { id: 1, name: 'compliance-canary-frontend', clone_url: '...', active: true, lastScan: 'Clean', vulnerabilityCount: 0 },
-  { id: 2, name: 'legacy-monolith', clone_url: '...', active: true, lastScan: 'Vulnerable', vulnerabilityCount: 3 },
-  { id: 3, name: 'api-gateway', clone_url: '...', active: false, lastScan: 'N/A', vulnerabilityCount: 0 },
-];
+// Define a type for our repository data
+interface Repository {
+  id: number;
+  name: string;
+  private: boolean;
+  url: string;
+}
 
 export default function DashboardPage() {
-  const [repos, setRepos] = useState(mockRepos); // Using mock data for now
+  const [repos, setRepos] = useState<Repository[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const router = useRouter();
 
   useEffect(() => {
-    // Check for token, redirect if not found
     const token = localStorage.getItem('canary_token');
     if (!token) {
       router.push('/');
       return;
     }
 
-    // In a real scenario, you would fetch data like this:
-    /*
     const fetchRepos = async () => {
       try {
-        const data = await getRepositories();
+        const data = await getUserRepositories();
         setRepos(data);
       } catch (error) {
         console.error("Failed to fetch repositories:", error);
-        router.push('/'); // Redirect on auth error
+        // Optionally, add a toast notification for the user
       } finally {
         setIsLoading(false);
       }
     };
-    fetchRepos();
-    */
-   setIsLoading(false); // For mock data
-  }, [router]);
 
-  if (isLoading) {
-    return (
-      <div className="flex justify-center items-center h-screen">Loading dashboard...</div>
-    );
-  }
+    fetchRepos();
+  }, [router]);
 
   return (
     <div className="min-h-screen bg-gray-900">
       <Header />
       <main className="p-4 sm:p-6 lg:p-8 max-w-7xl mx-auto">
         <div className="mb-6">
-          <h1 className="text-3xl font-bold text-white">Your Repositories</h1>
-          <p className="text-gray-400">Overview of your monitored repositories and their latest scan status.</p>
+          <h1 className="text-3xl font-bold text-white">Select a Repository</h1>
+          <p className="text-gray-400">Choose a repository to activate continuous compliance scanning.</p>
         </div>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {repos.map((repo) => (
-            <RepoCard key={repo.id} repo={repo} />
-          ))}
-        </div>
+        
+        {isLoading ? (
+          <p className="text-gray-300">Loading repositories from GitHub...</p>
+        ) : (
+          <div className="border border-gray-800 rounded-lg">
+            <Table>
+              <TableHeader>
+                <TableRow className="hover:bg-gray-800/50 border-gray-800">
+                  <TableHead className="w-[400px] text-white">Repository</TableHead>
+                  <TableHead className="text-white">Status</TableHead>
+                  <TableHead className="text-right text-white">Action</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {repos.map((repo) => (
+                  <TableRow key={repo.id} className="hover:bg-gray-800/50 border-gray-800">
+                    <TableCell className="font-medium">{repo.name}</TableCell>
+                    <TableCell>{repo.private ? "Private" : "Public"}</TableCell>
+                    <TableCell className="text-right">
+                      <Button variant="outline" size="sm">Activate Scan</Button>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+        )}
       </main>
     </div>
   );
