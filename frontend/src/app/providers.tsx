@@ -1,4 +1,4 @@
-// /frontend/app/providers.tsx
+// frontend/app/providers.tsx
 "use client";
 
 import { SessionProvider } from "next-auth/react";

@@ -1,4 +1,4 @@
-# /backend/schemas.py
+# backend/schemas.py
 from pydantic import BaseModel
 from typing import List, Optional
 from datetime import datetime
@@ -12,7 +12,7 @@ class Report(ReportBase):
     id: str
     timestamp: datetime
     class Config:
-        orm_mode = True
+        from_attributes = True  # Updated from orm_mode for Pydantic v2
 
 class RepoBase(BaseModel):
     name: str
@@ -26,7 +26,7 @@ class Repo(RepoBase):
     active: bool
     reports: List[Report] = []
     class Config:
-        orm_mode = True
+        from_attributes = True
 
 class UserBase(BaseModel):
     email: str
@@ -36,4 +36,4 @@ class User(UserBase):
     github_id: str
     repos: List[Repo] = []
     class Config:
-        orm_mode = True
+        from_attributes = True

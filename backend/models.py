@@ -1,4 +1,4 @@
-# /backend/models.py
+# backend/models.py
 from sqlalchemy import Boolean, Column, ForeignKey, Integer, String, DateTime
 from sqlalchemy.orm import relationship
 from .database import Base
@@ -30,5 +30,5 @@ class Report(Base):
     timestamp = Column(DateTime, default=datetime.utcnow)
     dns_exfil_found = Column(Boolean, default=False)
     ssrf_found = Column(Boolean, default=False)
-    pdf_path = Column(String, nullable=True) # Path to the generated PDF
+    pdf_path = Column(String, nullable=True)
     repo = relationship("Repo", back_populates="reports")

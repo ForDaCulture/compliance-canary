@@ -1,10 +1,30 @@
-# /backend/requirements.txt
-fastapi
-uvicorn[standard]
-sqlalchemy
-python-dotenv
-apscheduler
-httpx
-authlib
-reportlab
-sendgrid
+# Core Framework and Server
+fastapi>=0.115.0,<0.116.0  # Latest stable as of mid-2025
+uvicorn[standard]>=0.30.0,<0.31.0  # Compatible with FastAPI and reload support
+
+# Database
+sqlalchemy>=2.0.0,<2.1.0  # Latest stable with async support
+# SQLite is included with Python, no extra driver needed for now
+
+# Environment and Configuration
+python-dotenv>=1.0.0,<2.0.0  # Stable version for .env loading
+
+# Scheduling
+apscheduler>=3.10.0,<3.11.0  # Stable version for background tasks
+
+# HTTP and OAuth
+httpx>=0.27.0,<0.28.0  # Async HTTP client for OAuth
+authlib>=1.3.0,<1.4.0  # Stable OAuth library
+
+# PDF Generation
+reportlab>=4.2.0,<4.3.0  # Latest for PDF report creation
+
+# Email
+sendgrid>=6.11.0,<6.12.0  # Latest SendGrid client
+
+# JWT and Validation
+python-jose>=3.3.0,<3.4.0  # For JWT encoding/decoding
+pydantic>=2.8.0,<2.9.0  # For schema validation and type hints
+
+# Optional: Production Server (uncomment for deployment)
+# gunicorn>=22.0.0,<23.0.0
