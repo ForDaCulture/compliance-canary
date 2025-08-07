@@ -1,23 +1,29 @@
 // frontend/tailwind.config.ts
-export default {
-  content: ["./app/**/*.{js,ts,jsx,tsx}", "./components/**/*.{js,ts,jsx,tsx}"],
+import type { Config } from "tailwindcss";
+
+const config: Config = {
+  content: [
+    "./src/pages/**/*.{js,ts,jsx,tsx,mdx}",
+    "./src/components/**/*.{js,ts,jsx,tsx,mdx}",
+    "./src/app/**/*.{js,ts,jsx,tsx,mdx}",
+  ],
   theme: {
     extend: {
       animation: {
-        pulse: "pulse 3s cubic-bezier(0.4, 0, 0.6, 1) infinite",
-        fadeIn: "fadeIn 0.6s ease-out",
+        "text-shimmer": "text-shimmer 4s linear infinite",
       },
       keyframes: {
-        pulse: {
-          "0%, 100%": { opacity: 1 },
-          "50%": { opacity: 0.5 },
-        },
-        fadeIn: {
-          "0%": { opacity: 0, transform: "translateY(20px)" },
-          "100%": { opacity: 1, transform: "translateY(0)" },
+        "text-shimmer": {
+          from: {
+            backgroundPosition: "200% 0",
+          },
+          to: {
+            backgroundPosition: "-200% 0",
+          },
         },
       },
     },
   },
   plugins: [],
 };
+export default config;

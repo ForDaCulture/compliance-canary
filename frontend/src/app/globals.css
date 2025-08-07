@@ -3,6 +3,8 @@
 @tailwind components;
 @tailwind utilities;
 
+@import "tailwindcss/theme"; /* <-- THE FIX IS HERE */
+
 @layer base {
   :root {
     /* CSS variables for mouse position */
